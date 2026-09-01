@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<!-- Belt and braces on top of the "no external references" rule below: even
+     if one is ever added by mistake, the browser must not hand it the
+     authorization code sitting in this page's URL as a referrer. -->
+<meta name="referrer" content="no-referrer">
+<title>KIMILIO — continue in the app</title>
+
+<!--
+  THE BRIDGE BETWEEN AN EMAIL LINK AND THE APP.
+
+  WHY THIS EXISTS
+    Until 30 August 2026 the confirmation and password-reset emails pointed
+    Supabase straight at `kimilio://auth-callback`. A phone with the app
+    installed handles that. A computer does not — macOS Safari answers
+    "Safari cannot open the page because the address is invalid", which is
+    where the founder landed, twice, in the middle of recovering her own
+    account. Most people check email on a computer. That was a dead end for
+    them at the worst possible moment, with nothing on screen to explain it.
+
+    Supabase can only redirect to a URL. So the emails now point here — a real
+    https page — and this page decides what to do based on the device it
+    opened on.
+
+  WHY THE HANDOFF IS NOT AUTOMATIC ON A COMPUTER
+    Firing `kimilio://` on a desktop is what PRODUCES that Safari dialog.
+    Doing it automatically would show the error and then the explanation,
+    which is worse than the explanation alone. So the redirect runs only where
+    it can succeed, and everywhere else this page just says, in plain words,
+    what to do.
+
+  WHAT THIS PAGE MUST NEVER DO
+    It carries a single-use authorization code in its URL. So: no analytics,
+    no fonts, no scripts, no images, no requests of any kind to anywhere. Look
+    at the source — there is not one external reference in it. Anything added
+    here would be handed that code by the browser as a referrer.
+
+    The code is worthless on its own: it is exchangeable only by the app
+    holding the matching PKCE verifier, which never leaves the device. That
+    property is why routing through a page is acceptable at all, and it only
+    became true on 30 August 2026 when PKCE was fixed to use a real S256
+    challenge. Do not weaken one without reconsidering the other.
+
+  WHERE THIS IS DEPLOYED, AND WHY IT IS NOT THIS REPOSITORY
+    `lockit-app` is private, and GitHub Pages will not serve a private
+    repository on a free account. Making the whole codebase public to host one
+    HTML file is not a trade worth making, so this deploys to a separate
+    PUBLIC repository — `kimilio-links` — containing only this page.
+
+    THE CANONICAL COPY IS docs/auth/index.html IN THE PRIVATE `lockit-app`
+    REPOSITORY — this file is byte-identical in both places, so read that
+    sentence the same way whichever repository you found it in. That copy is
+    the one src/lib/auth/__tests__/authLinkBridge.test.ts reads and checks.
+    Editing the deployed copy in `kimilio-links` only makes the two drift, and
+    the deployed one is not tested. Change it there, run the tests, copy across.
+
+  REPLACING THIS
+    This is hosted on GitHub Pages because it needs no domain and no Apple
+    Developer enrolment. The better answer is Universal Links on a real
+    kimilio domain, which would open the app directly with no interstitial at
+    all, and would not put a github.io address in a security email. When that
+    domain exists, this page moves to it and the redirect URLs in
+    src/lib/auth/config.ts change to match. Nothing else has to.
+-->
+
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #11181c;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #101214; color: #ecedee; }
+    .card { border-color: #2a2f34; }
+    .muted { color: #9ba1a6; }
+  }
+  .card { max-width: 26rem; width: 100%; border: 1px solid #e3e6e8; border-radius: 14px; padding: 28px; }
+  h1 { font-size: 1.35rem; line-height: 1.3; margin: 0 0 12px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .muted { color: #62707b; font-size: 0.92rem; }
+  .brand { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: #62707b; margin: 0 0 20px; }
+  a.button {
+    display: block; text-align: center; text-decoration: none;
+    background: #208aef; color: #fff; font-weight: 600;
+    padding: 14px 18px; border-radius: 9px; margin: 18px 0 8px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Kimilio</p>
+
+    <div id="phone" hidden>
+      <h1>Opening Kimilio…</h1>
+      <p class="muted">If nothing happens, tap the button below.</p>
+      <a class="button" id="open" href="#">Open Kimilio</a>
+    </div>
+
+    <div id="computer" hidden>
+      <h1>Open this on your phone</h1>
+      <p>This link finishes inside the Kimilio app, so it needs to be opened on the phone the app is installed on.</p>
+      <p class="muted">Forward this email to yourself, or open your email on your phone and tap the link there. The link works only once, so use the most recent email you received.</p>
+    </div>
+
+    <div id="problem" hidden>
+      <h1>That link didn't work</h1>
+      <p id="problem-detail">It may have already been used, or it may have expired.</p>
+      <p class="muted">Open the app and ask for a new one.</p>
+    </div>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  var APP_SCHEME_URL = 'kimilio://auth-callback';
+
+  /**
+   * Rebuilds the app link from whatever Supabase appended. Everything is
+   * forwarded verbatim rather than picked out by name: today that is `code`
+   * and `flow`, but auth-js's own callback handling reads more than that, and
+   * a bridge that quietly dropped a parameter would be a bug nobody could see
+   * from here. Exposed on window so a test can drive it directly.
+   */
+  function buildAppUrl(search) {
+    var params = new URLSearchParams(search || '');
+    var query = params.toString();
+    return query ? APP_SCHEME_URL + '?' + query : APP_SCHEME_URL;
+  }
+
+  /** iOS and Android only. Everything else is treated as a computer. */
+  function isPhone(userAgent) {
+    return /iPhone|iPad|iPod|Android/i.test(userAgent || '');
+  }
+
+  window.__kimilioBridge = { buildAppUrl: buildAppUrl, isPhone: isPhone };
+
+  var params = new URLSearchParams(window.location.search);
+
+  // Supabase reports a refused or expired link as ?error=...; showing the
+  // "open on your phone" message for that would send someone to a phone to
+  // watch the same failure happen again.
+  if (params.get('error') || params.get('error_code')) {
+    var detail = params.get('error_description');
+    if (detail) {
+      document.getElementById('problem-detail').textContent = detail;
+    }
+    document.getElementById('problem').hidden = false;
+    return;
+  }
+
+  var appUrl = buildAppUrl(window.location.search);
+
+  if (isPhone(navigator.userAgent)) {
+    var open = document.getElementById('open');
+    open.setAttribute('href', appUrl);
+    document.getElementById('phone').hidden = false;
+    // A tick's delay so the page has painted before the OS prompt appears —
+    // otherwise a blank screen sits behind the "Open in Kimilio?" dialog and
+    // there is nothing to fall back to if it is dismissed.
+    window.setTimeout(function () { window.location.replace(appUrl); }, 60);
+    return;
+  }
+
+  document.getElementById('computer').hidden = false;
+})();
+</script>
+</body>
+</html>
