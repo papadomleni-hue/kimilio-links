@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<!-- Belt and braces on top of the "no external references" rule below: even
+     if one is ever added by mistake, the browser must not hand it the invite
+     token sitting in this page's URL as a referrer. -->
+<meta name="referrer" content="no-referrer">
+<title>KIMILIO — accept your invite</title>
+
+<!--
+  THE BRIDGE BETWEEN AN INVITE EMAIL AND THE APP.
+
+  WHY THIS EXISTS
+    The sibling page at ../auth/ was built on 30 August 2026 because
+    confirmation and password-reset emails pointed Supabase straight at
+    `kimilio://`, and a computer cannot open that — macOS Safari answers "the
+    address is invalid". Connection invites had the identical defect and were
+    missed at the time: connectionInviteEmail.ts mailed
+    `kimilio://connect/{id}?token=...` directly.
+
+    That one is arguably worse. An auth email goes to someone who already has
+    the app. An INVITE goes to someone who does not — a family member being
+    asked to join — and it is the first thing KIMILIO ever shows them. A
+    browser error is a poor first impression and an unrecoverable one, because
+    there is nothing on the screen telling them what to do instead.
+
+  WHY THIS IS A SEPARATE PAGE FROM ../auth/
+    Both pages forward to the app, so it is tempting to have one page take a
+    "which route?" parameter. That would be an open redirect into KIMILIO's own
+    URL scheme: anyone could mail a link that opened any screen in the app with
+    any parameters. Each page instead hardcodes the single path it forwards to.
+    The duplicated shell is the price, and it is the right price — there is no
+    build step here and a shared script file would be an external reference,
+    which the next section forbids.
+
+  THE CONNECTION ID IS VALIDATED, NOT TRUSTED
+    In the app link the id is a PATH SEGMENT (`kimilio://connect/<id>`), while
+    here it arrives as a query parameter. Anything that turns a query value
+    into a path needs to care what that value contains, so `c` must match a
+    UUID exactly or this page refuses to build a link at all. A parameter that
+    is not a UUID is a malformed or tampered link, and the honest answer to
+    both is the same: say it did not work. Note that the app also verifies the
+    token server-side before anything happens — this check is about not
+    constructing a path from an arbitrary string, not about authorisation.
+
+  WHAT THIS PAGE MUST NEVER DO
+    It carries a single-use invite token in its URL. So: no analytics, no
+    fonts, no scripts, no images, no requests of any kind to anywhere. Look at
+    the source — there is not one external reference in it. Anything added here
+    would be handed that token by the browser as a referrer.
+
+  WHERE THIS IS DEPLOYED, AND WHY IT IS NOT THIS REPOSITORY
+    `lockit-app` is private, and GitHub Pages will not serve a private
+    repository on a free account, so this deploys to the separate PUBLIC
+    repository `kimilio-links`.
+
+    THE CANONICAL COPY IS docs/connect/index.html IN THE PRIVATE `lockit-app`
+    REPOSITORY — this file is byte-identical in both places, so read that
+    sentence the same way whichever repository you found it in. That copy is
+    the one src/lib/auth/__tests__/connectLinkBridge.test.ts reads and checks.
+    Editing the deployed copy only makes the two drift, and the deployed one is
+    not tested. Change it there, run the tests, copy across. The daily
+    "Auth bridge page check" workflow fails if the two ever differ.
+
+  REPLACING THIS
+    Universal Links on a real kimilio domain would open the app directly with
+    no interstitial. When that domain exists, this page moves to it and
+    CONNECT_BRIDGE_URL in src/lib/auth/config.ts changes to match.
+-->
+
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #11181c;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #101214; color: #ecedee; }
+    .card { border-color: #2a2f34; }
+    .muted { color: #9ba1a6; }
+  }
+  .card { max-width: 26rem; width: 100%; border: 1px solid #e3e6e8; border-radius: 14px; padding: 28px; }
+  h1 { font-size: 1.35rem; line-height: 1.3; margin: 0 0 12px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .muted { color: #62707b; font-size: 0.92rem; }
+  .brand { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: #62707b; margin: 0 0 20px; }
+  a.button {
+    display: block; text-align: center; text-decoration: none;
+    background: #208aef; color: #fff; font-weight: 600;
+    padding: 14px 18px; border-radius: 9px; margin: 18px 0 8px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Kimilio</p>
+
+    <div id="phone" hidden>
+      <h1>Opening Kimilio…</h1>
+      <p class="muted">If nothing happens, tap the button below.</p>
+      <a class="button" id="open" href="#">Accept invite</a>
+      <p class="muted">Don't have Kimilio yet? Install it first, then tap this link again.</p>
+    </div>
+
+    <div id="computer" hidden>
+      <h1>Open this on your phone</h1>
+      <p>You've been invited to connect on Kimilio. Accepting happens inside the app, so this needs to be opened on a phone with Kimilio installed.</p>
+      <p class="muted">Forward this email to yourself, or open your email on your phone and tap the link there. If you don't have Kimilio yet, install it first, then tap the link again.</p>
+    </div>
+
+    <div id="problem" hidden>
+      <h1>That invite link didn't work</h1>
+      <p id="problem-detail">It may have expired, or a newer invite may have replaced it.</p>
+      <p class="muted">Ask whoever invited you to send it again.</p>
+    </div>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  // Hardcoded, and the only app path this page can ever produce. See the
+  // "separate page" note in the header comment above.
+  var APP_SCHEME_PREFIX = 'kimilio://connect/';
+
+  // The parameter carrying the connection id. `token` and anything else are
+  // forwarded untouched.
+  var ID_PARAM = 'c';
+
+  var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  /**
+   * Rebuilds the app link, or returns null if the link is not one this page is
+   * willing to build. Everything except the id is forwarded verbatim rather
+   * than picked out by name — today that is `token`, and a bridge that quietly
+   * dropped a parameter would be a bug nobody could see from here.
+   *
+   * Returns null rather than throwing so every rejection lands on the same
+   * visible "didn't work" state. Exposed on window so a test can drive it.
+   */
+  function buildAppUrl(search) {
+    var params = new URLSearchParams(search || '');
+    var id = params.get(ID_PARAM);
+
+    // Fail closed. This value becomes a path segment; a non-UUID here is a
+    // malformed or tampered link, never a legitimate one we should follow.
+    if (!id || !UUID.test(id)) {
+      return null;
+    }
+
+    params.delete(ID_PARAM);
+    var query = params.toString();
+    // encodeURIComponent is a no-op on a string the regex above has already
+    // restricted to hex digits and hyphens. It stays because the safety here
+    // should not depend on remembering what the regex allows.
+    return APP_SCHEME_PREFIX + encodeURIComponent(id) + (query ? '?' + query : '');
+  }
+
+  /** iOS and Android only. Everything else is treated as a computer. */
+  function isPhone(userAgent) {
+    return /iPhone|iPad|iPod|Android/i.test(userAgent || '');
+  }
+
+  window.__kimilioConnectBridge = { buildAppUrl: buildAppUrl, isPhone: isPhone };
+
+  var params = new URLSearchParams(window.location.search);
+
+  function showProblem(detail) {
+    if (detail) {
+      document.getElementById('problem-detail').textContent = detail;
+    }
+    document.getElementById('problem').hidden = false;
+  }
+
+  if (params.get('error') || params.get('error_code')) {
+    showProblem(params.get('error_description'));
+    return;
+  }
+
+  var appUrl = buildAppUrl(window.location.search);
+
+  // A link this page will not build is a dead link, on a phone as much as on a
+  // computer. Sending someone to their phone to watch the same failure happen
+  // again would be worse than saying so here.
+  if (!appUrl) {
+    showProblem(null);
+    return;
+  }
+
+  if (isPhone(navigator.userAgent)) {
+    var open = document.getElementById('open');
+    open.setAttribute('href', appUrl);
+    document.getElementById('phone').hidden = false;
+    // A tick's delay so the page has painted before the OS prompt appears —
+    // otherwise a blank screen sits behind the "Open in Kimilio?" dialog and
+    // there is nothing to fall back to if it is dismissed.
+    window.setTimeout(function () { window.location.replace(appUrl); }, 60);
+    return;
+  }
+
+  document.getElementById('computer').hidden = false;
+})();
+</script>
+</body>
+</html>
