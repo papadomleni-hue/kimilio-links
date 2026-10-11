@@ -108,25 +108,124 @@
     <p class="brand">Kimilio</p>
 
     <div id="phone" hidden>
-      <h1>Opening Kimilio…</h1>
-      <p class="muted">If nothing happens, tap the button below.</p>
-      <a class="button" id="open" href="#">Accept invite</a>
-      <p class="muted">Don't have Kimilio yet? Install it first, then tap this link again.</p>
+      <h1 data-t="opening">Opening Kimilio…</h1>
+      <p class="muted" data-t="tap">If nothing happens, tap the button below.</p>
+      <a class="button" id="open" href="#" data-t="accept">Accept invite</a>
+      <p class="muted" data-t="install">Don't have Kimilio yet? Install it first, then tap this link again.</p>
     </div>
 
     <div id="computer" hidden>
-      <h1>Open this on your phone</h1>
-      <p>You've been invited to connect on Kimilio. Accepting happens inside the app, so this needs to be opened on a phone with Kimilio installed.</p>
-      <p class="muted">Forward this email to yourself, or open your email on your phone and tap the link there. If you don't have Kimilio yet, install it first, then tap the link again.</p>
+      <h1 data-t="h_computer">Open this on your phone</h1>
+      <p data-t="p_invited">You've been invited to connect on Kimilio. Accepting happens inside the app, so this needs to be opened on a phone with Kimilio installed.</p>
+      <p class="muted" data-t="forward2">Forward this email to yourself, or open your email on your phone and tap the link there. If you don't have Kimilio yet, install it first, then tap the link again.</p>
     </div>
 
     <div id="problem" hidden>
-      <h1>That invite link didn't work</h1>
-      <p id="problem-detail">It may have expired, or a newer invite may have replaced it.</p>
-      <p class="muted">Ask whoever invited you to send it again.</p>
+      <h1 data-t="h_cproblem">That invite link didn't work</h1>
+      <p id="problem-detail" data-t="p_cproblem">It may have expired, or a newer invite may have replaced it.</p>
+      <p class="muted" data-t="p_resend">Ask whoever invited you to send it again.</p>
     </div>
   </main>
 
+<script>
+/* Page text in the languages the app ships. English stays in the markup as the default.
+   The language comes from the browser (this page opens on the same device as the email).
+   No requests of any kind are made here. */
+(function () {
+  var T = {
+ "opening": {
+  "es": "Abriendo Kimilio…",
+  "fr": "Ouverture de Kimilio…",
+  "de": "Kimilio wird geöffnet…",
+  "pt": "Abrindo o Kimilio…",
+  "ar": "جار فتح Kimilio…",
+  "he": "פותח את Kimilio…"
+ },
+ "tap": {
+  "es": "Si no pasa nada, toca el botón de abajo.",
+  "fr": "Si rien ne se passe, touchez le bouton ci-dessous.",
+  "de": "Falls nichts passiert, tippen Sie auf die Schaltfläche unten.",
+  "pt": "Se nada acontecer, toque no botão abaixo.",
+  "ar": "إذا لم يحدث شيء، فاضغط على الزر أدناه.",
+  "he": "אם לא קורה כלום, הקישו על הכפתור למטה."
+ },
+ "accept": {
+  "es": "Aceptar invitación",
+  "fr": "Accepter l’invitation",
+  "de": "Einladung annehmen",
+  "pt": "Aceitar convite",
+  "ar": "قبول الدعوة",
+  "he": "לאשר את ההזמנה"
+ },
+ "install": {
+  "es": "¿Aún no tienes Kimilio? Instálala primero y luego toca este enlace de nuevo.",
+  "fr": "Vous n’avez pas encore Kimilio ? Installez-la d’abord, puis touchez de nouveau ce lien.",
+  "de": "Sie haben Kimilio noch nicht? Installieren Sie die App zuerst und tippen Sie dann erneut auf diesen Link.",
+  "pt": "Ainda não tem o Kimilio? Instale primeiro e depois toque neste link de novo.",
+  "ar": "ليس لديك Kimilio بعد؟ ثبته أولا ثم اضغط على هذا الرابط مرة أخرى.",
+  "he": "עדיין אין לכם Kimilio? התקינו אותה קודם ואז הקישו שוב על הקישור."
+ },
+ "h_computer": {
+  "es": "Ábrelo en tu teléfono",
+  "fr": "Ouvrez ceci sur votre téléphone",
+  "de": "Öffnen Sie dies auf Ihrem Telefon",
+  "pt": "Abra no seu celular",
+  "ar": "افتح هذا على هاتفك",
+  "he": "פתחו את זה בטלפון"
+ },
+ "p_invited": {
+  "es": "Te invitaron a conectar en Kimilio. Aceptar ocurre dentro de la app, así que hay que abrir esto en un teléfono con Kimilio instalada.",
+  "fr": "Vous avez été invité à vous connecter sur Kimilio. L’acceptation se fait dans l’application ; ouvrez donc ceci sur un téléphone où Kimilio est installée.",
+  "de": "Sie wurden eingeladen, sich auf Kimilio zu verbinden. Das Annehmen geschieht in der App, daher muss dies auf einem Telefon mit installiertem Kimilio geöffnet werden.",
+  "pt": "Você foi convidado para se conectar no Kimilio. Aceitar acontece dentro do app, então abra isto em um celular com o Kimilio instalado.",
+  "ar": "تمت دعوتك للتواصل على Kimilio. يتم القبول داخل التطبيق، لذلك افتح هذا على هاتف مثبت عليه Kimilio.",
+  "he": "הוזמנתם להתחבר ב-Kimilio. האישור מתבצע בתוך האפליקציה, ולכן יש לפתוח את זה בטלפון שבו Kimilio מותקנת."
+ },
+ "forward2": {
+  "es": "Reenvíate este correo o abre tu correo en el teléfono y toca el enlace allí. Si aún no tienes Kimilio, instálala primero y luego toca el enlace de nuevo.",
+  "fr": "Transférez cet e-mail à vous-même, ou ouvrez votre messagerie sur votre téléphone et touchez le lien depuis là. Si vous n’avez pas encore Kimilio, installez-la d’abord, puis touchez de nouveau le lien.",
+  "de": "Leiten Sie diese E-Mail an sich selbst weiter, oder öffnen Sie Ihr Postfach auf dem Telefon und tippen Sie dort auf den Link. Falls Sie Kimilio noch nicht haben, installieren Sie die App zuerst und tippen Sie dann erneut auf den Link.",
+  "pt": "Encaminhe este e-mail para você mesmo ou abra seu e-mail no celular e toque no link por lá. Se ainda não tem o Kimilio, instale primeiro e depois toque no link de novo.",
+  "ar": "أعد توجيه هذه الرسالة إلى نفسك، أو افتح بريدك على الهاتف واضغط على الرابط من هناك. وإذا لم يكن لديك Kimilio بعد، فثبته أولا ثم اضغط على الرابط مرة أخرى.",
+  "he": "העבירו את המייל הזה לעצמכם, או פתחו את המייל בטלפון והקישו שם על הקישור. אם עדיין אין לכם Kimilio, התקינו אותה קודם ואז הקישו שוב על הקישור."
+ },
+ "h_cproblem": {
+  "es": "Ese enlace de invitación no funcionó",
+  "fr": "Ce lien d’invitation n’a pas fonctionné",
+  "de": "Dieser Einladungslink hat nicht funktioniert",
+  "pt": "Esse link de convite não funcionou",
+  "ar": "لم يعمل رابط الدعوة هذا",
+  "he": "קישור ההזמנה הזה לא עבד"
+ },
+ "p_cproblem": {
+  "es": "Puede que haya caducado o que una invitación más reciente lo haya reemplazado.",
+  "fr": "Il a peut-être expiré, ou une invitation plus récente l’a remplacé.",
+  "de": "Er ist möglicherweise abgelaufen, oder eine neuere Einladung hat ihn ersetzt.",
+  "pt": "Ele pode ter expirado ou ter sido substituído por um convite mais recente.",
+  "ar": "ربما انتهت صلاحيته أو حلت محله دعوة أحدث.",
+  "he": "ייתכן שפג תוקפו או שהזמנה חדשה יותר החליפה אותו."
+ },
+ "p_resend": {
+  "es": "Pídele a quien te invitó que te la envíe de nuevo.",
+  "fr": "Demandez à la personne qui vous a invité de vous l’envoyer à nouveau.",
+  "de": "Bitten Sie die Person, die Sie eingeladen hat, die Einladung erneut zu senden.",
+  "pt": "Peça a quem convidou você que envie de novo.",
+  "ar": "اطلب ممن دعاك أن يرسلها مرة أخرى.",
+  "he": "בקשו ממי שהזמין אתכם לשלוח אותה שוב."
+ }
+};
+  var RTL = { ar: 1, he: 1 };
+  var code = String((navigator.language || 'en')).toLowerCase().split('-')[0];
+  if (!T[Object.keys(T)[0]][code]) return;
+  document.documentElement.lang = code;
+  document.documentElement.dir = RTL[code] ? 'rtl' : 'ltr';
+  var els = document.querySelectorAll('[data-t]');
+  for (var i = 0; i < els.length; i++) {
+    var v = T[els[i].getAttribute('data-t')];
+    if (v && v[code]) els[i].textContent = v[code];
+  }
+})();
+</script>
 <script>
 (function () {
   'use strict';
